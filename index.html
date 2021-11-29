@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html prefix="og: https://ogp.me/ns#" lang="ja">
+<head>
+	<meta charset="utf-8">
+	<title>NCBIから配列をFASTA形式でダウンロード</title>
+</head>
+<body>
+	<h1>NCBIから配列をFASTA形式でダウンロード</h1>
+	<label>
+		<h2>データベース</h2>
+		<input type="text" value="nucleotide" id="db" required>
+	</label>
+	<label>
+		<h2>ID</h2>
+		<textarea id="id" rows="10" placeholder="JC598691&#13;&#10;JC598690" required></textarea>
+	</label>
+	<button id="download">ダウンロード</button>
+</body>
+<script>
+	function format(text) {
+		let newText = text.trim();
+		newText = newText.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) => {
+			return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+		});
+		return newText;
+	}
+	const downloadE = document.getElementById("download");
+	const html = document.getElementsByTagName("html")[0];
+	downloadE.addEventListener("click", () => {
+		html.classList.add("progress");
+		const dbE = document.getElementById("db");
+		let db = dbE.value;
+		const idArea = document.getElementById("id");
+		const ids = idArea.value.split("\n");
+		const dlLink = document.createElement("a");
+		if (!db || ids[0] === "") {
+			alert("全て入力してください。");
+			html.classList.remove("progress");
+			return;
+		}
+		const newDbValue = format(db);
+		db = newDbValue;
+		dbE.value = newDbValue;
+		idArea.value = "";
+		ids.forEach((id, i) => {
+			const newId = format(id);
+			idArea.value += newId + "\n";
+			ids[i] = newId;
+		});
+		idArea.value = idArea.value.replace(/\n$/, "");
+		(async() => {
+			let text = "";
+			try {
+				for (let i = 0; i < ids.length; i++) {
+					const id = ids[i];
+					let fasta = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=${db}&id=${id}&retmode=text&rettype=fasta`).then((r) => {
+						if (r.status === 200) {
+							return r.text();
+						} else {
+							throw new Error(`${db}、${id}が見つかりませんでした。`);
+						}
+					});
+					fasta = fasta.replace(/\n$/, "");
+					text += fasta;
+				}
+			} catch (e) {
+				alert(e.message);
+				html.classList.remove("progress");
+				return;
+			}
+			const blob = new Blob([text], {
+				type: "chemical/seq-aa-fasta"
+			});
+			dlLink.setAttribute("href", window.URL.createObjectURL(blob));
+			dlLink.setAttribute("download", "out.fasta");
+			dlLink.click();
+			html.classList.remove("progress");
+		})();
+	});
+</script>
+<style>
+	* {
+		box-sizing: border-box;
+	}
+	body {
+		width: 600px;
+		max-width: 85vw;
+		margin: 40px auto;
+		font: 400 16px/1.7 -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
+		color: #222;
+	}
+	html.progress, html.progress * {
+		cursor: progress;
+	}
+	h1 {
+		line-height: 1.4;
+	}
+	label {
+		display: block;
+		margin: 20px 0 0;
+	}
+	label h2 {
+		margin-bottom: 0;
+	}
+	input[type=text], textarea, button {
+		width: 100%;
+		font: inherit;
+		color: inherit;
+		line-height: 1.7;
+		margin: 0.5em 0 0;
+		padding: 0.7em 1em;
+		border-radius: 5px;
+	}
+	input[type=text], textarea {
+		border: solid 2px #e1e3e8;
+		resize: none;
+	}
+	button {
+		background: #e1e3e8;
+		cursor: pointer;
+		border: none;
+		transition: all .3s ease;
+	}
+	button:hover {
+		background: #dbdcdf;
+	}
+	#download {
+		margin-top: 26px;
+	}
+</style>
+</html>
