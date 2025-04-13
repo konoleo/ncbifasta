@@ -55,6 +55,7 @@
 					const id = ids[i];
 					let fasta = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=${db}&id=${id}&retmode=text&rettype=fasta`).then((r) => {
 						if (r.status === 200) {
+							console.log(`${i}: ${id}`);
 							return r.text();
 						} else {
 							throw new Error(`${db}、${id}が見つかりませんでした。`);
